@@ -4,3 +4,4 @@ plog.rpi.edu
 sustainability.rpi.edu
 news.rpi.edu
 union.rpi.edu
+morningmail.rpi.edu
