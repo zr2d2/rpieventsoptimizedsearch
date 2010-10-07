@@ -1,0 +1,6 @@
+events.rpi.edu
+blogger.rpi.edu/approach
+plog.rpi.edu
+sustainability.rpi.edu
+news.rpi.edu
+union.rpi.edu
