@@ -8,7 +8,7 @@ class EventsSearch(SearchBase):
     results = None
     keywords = {}
     domains = []
-    
+    locations = []
     def search(self, query, rpp):
         self.results = super(EventsSearch, self).search(query, rpp)
         self.printResults()
@@ -20,10 +20,15 @@ class EventsSearch(SearchBase):
             print res.url#.encode("utf8")
             print
 
+    def initLocations(self):
+	#one location per line
+	location_file = open("locations.txt",'r')
+	for line in location_file:
+		self.locations.append(line.strip('\r\n'))
+
     def initDomains(self):
 	domain_file = open("domains.txt",'r')
 	for line in domain_file:
-		print line
 		for domain in line.split():
 			self.domains.append(domain)
 
@@ -44,6 +49,7 @@ class EventsSearch(SearchBase):
     def reorder(self):
         self.initDictionary()
 	self.initDomains()
+	self.initLocations()
         value = 0
         orders = []
         pair = ()
