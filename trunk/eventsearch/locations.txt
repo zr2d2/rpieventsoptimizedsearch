@@ -6,5 +6,3 @@ Hirsch Observatory
 Lally
 Sage
 Union
-
-
