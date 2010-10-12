@@ -9,10 +9,11 @@ class EventsSearch(SearchBase):
     keywords = {}
     domains = []
     locations = []
+    query = None
     def search(self, query, rpp):
         self.results = super(EventsSearch, self).search(query, rpp)
         self.printResults()
-
+	self.query = query
     def printResults(self):
         for res in self.results:
             print res.title#.encode("utf8")
@@ -28,9 +29,9 @@ class EventsSearch(SearchBase):
 
     def addLocationValue(self, res):
 	for location in self.locations:
+		if self.query.find(location) >= 0:
+			return 2
 		if res.desc.find(location) >= 0:
-			print "FOUND:"
-			print location
 			return 1
 	return 0
 
