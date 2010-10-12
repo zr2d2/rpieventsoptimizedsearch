@@ -26,6 +26,14 @@ class EventsSearch(SearchBase):
 	for line in location_file:
 		self.locations.append(line.strip('\r\n'))
 
+    def addLocationValue(self, res):
+	for location in self.locations:
+		if res.desc.find(location) >= 0:
+			print "FOUND:"
+			print location
+			return 1
+	return 0
+
     def initDomains(self):
 	domain_file = open("domains.txt",'r')
 	for line in domain_file:
@@ -67,6 +75,7 @@ class EventsSearch(SearchBase):
                     if key == t:
                         value+=self.keywords[key]
 	    value += self.addDomainValue(res)
+	    value += self.addLocationValue(res)
             pair = res, value
             orders.append(pair)
             pair = ()
