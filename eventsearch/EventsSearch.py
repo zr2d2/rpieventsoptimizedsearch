@@ -1,4 +1,4 @@
-#Zach Rowe, Dan Souza, Phil Sarid
+#Zach Rowe, Phil Sarid, Dan Souza
 #FA2010
 #Event Search
 
@@ -10,8 +10,6 @@ from RSS import ns, CollectionChannel, TrackingChannel
 import time
 import datetime
 
-
-
 class EventsSearch(SearchBase):
     results = None
     domains = []
@@ -21,19 +19,25 @@ class EventsSearch(SearchBase):
 
     DATE_HEURISTIC = 5
     DOMAIN_HEURISTIC = 1
-    LOCATION_HEURISTIC = 3
+    LOCATION_HEURISTIC = 7
+    TITLE_HEURISTIC = 2
+    DESC_HEURISTIC = .01
 
     months = {1:["January","Jan"],2:["February","February"],3:["March","Mar"],4:["April","Apr"],5:["May"],6:["June","Jun"],7:["July","Jul"],8:["August","Aug"],9:["September","Sep"],10:["October","Oct"],11:["November","Nov"],12:["December","Dec"]}
     def search(self, query, rpp):
         self.results = super(EventsSearch, self).search(query, rpp)
-        #self.printResults()
 	self.query = query
+	self.reorder()
+	self.printResults()
+
+    #print results
     def printResults(self):
-        for res in self.results:
-            print res.title#.encode("utf8")
-            print res.desc#.encode("utf8")
-            print res.url#.encode("utf8")
-            print
+	for res in self.results:
+		print res.title#.encode("utf8")
+		print res.desc#.encode("utf8")
+		print res.url#.encode("utf8")
+		print
+
     #Creates a URL for an RSS feed from the span of dates
     #Currently filters College Fairs
     def createURL(self, start, end):
@@ -54,9 +58,9 @@ class EventsSearch(SearchBase):
 	else:
 		endmonth = str(end.month)
 	url = "http://events.rpi.edu/webcache/v1.0/rssRange/"+ str(start.year) + startmonth + startday +"/"+ str(end.year) + endmonth + endday+"/list-rss/(catuid!%3D'00f18254-27ff9c18-0127-ff9c19ce-00000020').rss"#no--filter.rss"
-	print url
 	return url
 
+    #Add RSS results to the google results
     def addRSS(self):
 	#Indexes RSS data by item URL
 	tc = TrackingChannel()
@@ -80,9 +84,13 @@ class EventsSearch(SearchBase):
 	    desc = item_data.get(RSS10_DESC, "(none)").replace("<br/>","").replace("\n","").replace("\r","").replace("  "," ")
 	    for q in self.query.split():
 		if(title.lower().find(q.lower()) >= 0 or desc.lower().find(q.lower())):
-			self.results.append(SearchResult(title, url, desc))
-			break
+			if(len(self.results) <= 50):
+				self.results.append(SearchResult(title, url, desc))
+				break
 
+    #Sets eventdate
+    #Determine if a month or year is present within the query
+    #Otherwise, use today's date as a metric
     def initEventDate(self):
 	for i in xrange(1,len(self.months) + 1):
 		for month in self.months[i]:
@@ -92,37 +100,44 @@ class EventsSearch(SearchBase):
 	for year in xrange(1990, self.eventdate.year + 2):
 		if self.query.find(str(year)) >= 0:
 			self.eventdate = datetime.date(year,self.eventdate.month,self.eventdate.day)
-			self.query = self.query.replace(year,"")
-	print self.eventdate
-	print self.query
+			self.query = self.query.replace(str(year),"")
 
+    #Create a list of campus locations
     def initLocations(self):
 	#one location per line
 	location_file = open("locations.txt",'r')
 	for line in location_file:
 		self.locations.append(line.strip('\r\n'))
 
+    #Adds a value between 0-1 if a campus location is in the result description
     def addLocationValue(self, res):
 	for location in self.locations:
 		if res.desc.find(location) >= 0:
 			if self.query.find(location) >= 0:
-				return 2
-			else:
 				return 1
+			else:
+				return 0
 			
 	return 0
 
+    #Initialize the Whitelisted Domains List
     def initDomains(self):
 	domain_file = open("domains.txt",'r')
 	for line in domain_file:
 		for domain in line.split():
 			self.domains.append(domain)
 
+    #Returns 1 if a whitelisted domain is present in the result url
+    #Otherwise returns 0
     def addDomainValue(self, res):
 	for domain in self.domains:
 		if res.url.find(domain) >= 0:
 			return 1
 	return 0
+
+    #Returns a value between 0-1
+    #based on the difference between month and year of eventdate 
+    #and the first date found within the result description
     def addDateValue(self,res):
 	yearscale = 1
 	for year in xrange(1990, self.eventdate.year + 1):
@@ -139,11 +154,32 @@ class EventsSearch(SearchBase):
 				#print (12.0 - abs(i - self.eventdate.month)) / 12
 				return ((12.0 - abs(i - self.eventdate.month)) / 12) * yearscale
 	return 0
+    #returns a value between 0-1 depending on how many of the
+    #words in the search query are present in the title
+    def addTitleValue(self,res):
+	found = 0.0
+	for term in self.query.split():
+		if res.title.find(term) >= 0:
+			found +=1
+	return found / len(self.query.split())
 
+    #returns a value between 0-1 depending on how many of the
+    #words in the search query are present in the description
+    def addDescriptionValue(self,res):
+	found = 0.0
+	for term in self.query.split():
+		if res.title.find(term) >= 0:
+			found +=1
+	return found / len(self.query.split())
+
+    #Reorders the search results
     def reorder(self):
+	#Initialize Domain, Location lists
 	self.initDomains()
 	self.initLocations()
+	#Determine event date range
 	self.initEventDate()
+	#Add results from events.rpi.edu RSS Feed
 	self.addRSS()
         value = 0
         orders = []
@@ -151,9 +187,14 @@ class EventsSearch(SearchBase):
         
         #search titles and descriptions for keywords
         for res in self.results:
+	    #add to rank if URL contains whitelisted domain
 	    value += (self.addDomainValue(res) * self.DOMAIN_HEURISTIC)
+	    #add to rank if the query location or a campus location is in the description
 	    value += (self.addLocationValue(res) * self.LOCATION_HEURISTIC)
+	    #determine the month/date distance to the eventdate
 	    value += (self.addDateValue(res) * self.DATE_HEURISTIC)
+	    value += (self.addTitleValue(res) * self.TITLE_HEURISTIC)
+	    value += (self.addDescriptionValue(res) * self.DESC_HEURISTIC)
             pair = res, value
             orders.append(pair)
             pair = ()
@@ -163,12 +204,10 @@ class EventsSearch(SearchBase):
         def cmpfun(a,b):
             return cmp(b[1],a[1])
         orders.sort(cmpfun)
-
+	#print out results for debugging purposes (TEMPORARY)
         for i in orders:
             print i[0].title, "RANK = ", i[1]
             print i[0].desc
 	    print i[0].url
             print
-
-        
 
