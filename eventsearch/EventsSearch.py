@@ -96,6 +96,14 @@ class EventsSearch(SearchBase):
 			return 1
 	return 0
     def addDateValue(self,res):
+	yearscale = 1
+	for year in xrange(1990, self.eventdate.year + 1):
+		if res.title.find(str(year)) >= 0 or res.desc.find(str(year)) >= 0:
+			if self.eventdate.year == year:
+				yearscale = 1.0
+				continue
+			else:
+				yearscale = 1.0/abs(year - self.eventdate.year)
 	for i in xrange(1,len(self.months)):
 		for month in self.months[i]:
 			if res.title.find(month) >= 0 or res.desc.find(month) >= 0:
