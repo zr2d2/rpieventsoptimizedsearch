@@ -204,10 +204,4 @@ class EventsSearch(SearchBase):
         def cmpfun(a,b):
             return cmp(b[1],a[1])
         orders.sort(cmpfun)
-	#print out results for debugging purposes (TEMPORARY)
-        for i in orders:
-            print i[0].title, "RANK = ", i[1]
-            print i[0].desc
-	    print i[0].url
-            print
 
