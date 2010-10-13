@@ -3,6 +3,6 @@
 from EventsSearch import EventsSearch
 
 A = EventsSearch()
-A.search("Room",1)
+A.search("Event",1)
 A.reorder()
 #A.printResults()
