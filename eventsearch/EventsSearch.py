@@ -38,14 +38,30 @@ class EventsSearch(SearchBase):
     #Creates a URL for an RSS feed from the span of dates
     #Currently filters College Fairs
     def createURL(self, start, end):
-	url = "http://events.rpi.edu/webcache/v1.0/rssRange/"+ str(start.year) + str(start.month)+ str(start.day)+"/"+ str(end.year)+str(end.month)+ str(end.day)+"/list-rss/(catuid!%3D'00f18254-27ff9c18-0127-ff9c19ce-00000020').rss"#no--filter.rss"
-	#print url
+	if(start.day < 10):
+		startday = "0" + str(start.day)
+	else:
+		startday = str(start.day)
+	if(start.month < 10):
+		startmonth = "0" + str(start.month)
+	else:
+		startmonth = str(start.month)
+	if(end.day < 10):
+		endday = "0" + str(end.day)
+	else:
+		endday = str(end.day)
+	if(end.month < 10):
+		endmonth = "0" + str(end.month)
+	else:
+		endmonth = str(end.month)
+	url = "http://events.rpi.edu/webcache/v1.0/rssRange/"+ str(start.year) + startmonth + startday +"/"+ str(end.year) + endmonth + endday+"/list-rss/(catuid!%3D'00f18254-27ff9c18-0127-ff9c19ce-00000020').rss"#no--filter.rss"
+	print url
 	return url
     def addRSS(self):
 	#Indexes RSS data by item URL
 	tc = TrackingChannel()
-	StartDate = self.eventdate - datetime.timedelta(days=3)
-	EndDate = self.eventdate + datetime.timedelta(days=5)
+	StartDate = self.eventdate - datetime.timedelta(days=14)
+	EndDate = self.eventdate + datetime.timedelta(days=14)
 	
 	#Returns the RSSParser instance used, which can usually be ignored
 	tc.parse(self.createURL(StartDate,EndDate))
@@ -66,10 +82,23 @@ class EventsSearch(SearchBase):
 	    #print "Title:", item_data.get(RSS10_TITLE, "(none)")
 	    #print "Description:", item_data.get(RSS10_DESC, "(none)")
 	    for q in self.query.split():
-		if(title.lower().find(q.lower()) >= 0):# or desc.lower().find(q.lower())):
+		if(title.lower().find(q.lower()) >= 0 or desc.lower().find(q.lower())):
 			self.results.append(SearchResult(title, url, desc))
 			#print q
 			break
+    def initEventDate(self):
+	for i in xrange(1,len(self.months) + 1):
+		for month in self.months[i]:
+			if self.query.find(month) >= 0:
+				self.eventdate = datetime.date(self.eventdate.year,i,self.eventdate.day)
+				print month
+				print self.eventdate
+	for year in xrange(1990, self.eventdate.year + 2):
+		if self.query.find(str(year)) >= 0:
+			self.eventdate = datetime.date(year,self.eventdate.month,self.eventdate.day)
+			print year
+			print self.eventdate
+	print self.eventdate
 
     def initLocations(self):
 	#one location per line
@@ -105,7 +134,7 @@ class EventsSearch(SearchBase):
 				continue
 			else:
 				yearscale = 1.0/abs(year - self.eventdate.year)
-	for i in xrange(1,len(self.months)):
+	for i in xrange(1,len(self.months) + 1):
 		for month in self.months[i]:
 			if res.title.find(month) >= 0 or res.desc.find(month) >= 0:
 				#print (12.0 - abs(i - self.eventdate.month)) / 12
@@ -123,6 +152,7 @@ class EventsSearch(SearchBase):
         self.initDictionary()
 	self.initDomains()
 	self.initLocations()
+	self.initEventDate()
 	self.addRSS()
         value = 0
         orders = []
