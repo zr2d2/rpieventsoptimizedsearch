@@ -8,12 +8,22 @@ from RSS import ns, CollectionChannel, TrackingChannel
 
 import time
 import datetime
+
+
+
 class EventsSearch(SearchBase):
     results = None
     keywords = {}
     domains = []
     locations = []
     query = None
+    eventdate = datetime.date.today()
+
+    DATE_HEURISTIC = 5
+    DOMAIN_HEURISTIC = 1
+    LOCATION_HEURISTIC = 2
+
+    months = {1:["January","Jan"],2:["February","February"],3:["March","Mar"],4:["April","Apr"],5:["May"],6:["June","Jun"],7:["July","Jul"],8:["August","Aug"],9:["September","Sep"],10:["October","Oct"],11:["November","Nov"],12:["December","Dec"]}
     def search(self, query, rpp):
         self.results = super(EventsSearch, self).search(query, rpp)
         #self.printResults()
@@ -24,17 +34,17 @@ class EventsSearch(SearchBase):
             print res.desc#.encode("utf8")
             print res.url#.encode("utf8")
             print
+    #Creates a URL for an RSS feed from the span of dates
+    #Currently filters College Fairs
     def createURL(self, start, end):
-	
-	url = "http://events.rpi.edu/webcache/v1.0/rssRange/"+ str(start.year) + str(start.month)+ str(start.day)+"/"+ str(end.year)+str(end.month)+ str(end.day)+"/list-rss/no--filter.rss"
-	print url
+	url = "http://events.rpi.edu/webcache/v1.0/rssRange/"+ str(start.year) + str(start.month)+ str(start.day)+"/"+ str(end.year)+str(end.month)+ str(end.day)+"/list-rss/(catuid!%3D'00f18254-27ff9c18-0127-ff9c19ce-00000020').rss"#no--filter.rss"
+	#print url
 	return url
     def addRSS(self):
 	#Indexes RSS data by item URL
 	tc = TrackingChannel()
-	TodayDate = datetime.date.today()
-	StartDate = TodayDate - datetime.timedelta(days=3)
-	EndDate = TodayDate + datetime.timedelta(days=5)
+	StartDate = self.eventdate - datetime.timedelta(days=3)
+	EndDate = self.eventdate + datetime.timedelta(days=5)
 	
 	#Returns the RSSParser instance used, which can usually be ignored
 	tc.parse(self.createURL(StartDate,EndDate))
@@ -51,13 +61,13 @@ class EventsSearch(SearchBase):
 	    #Get all the data for the item as a Python dictionary
 	    item_data = tc.getItem(item)
 	    title = item_data.get(RSS10_TITLE, "(none)")
-	    desc = item_data.get(RSS10_DESC, "(none)").replace("<br/>","").replace("\n","").replace("\r","")
+	    desc = item_data.get(RSS10_DESC, "(none)").replace("<br/>","").replace("\n","").replace("\r","").replace("  "," ")
 	    #print "Title:", item_data.get(RSS10_TITLE, "(none)")
 	    #print "Description:", item_data.get(RSS10_DESC, "(none)")
 	    for q in self.query.split():
-		if(title.lower().find(q.lower()) >= 0 or desc.lower().find(q.lower())):
+		if(title.lower().find(q.lower()) >= 0):# or desc.lower().find(q.lower())):
 			self.results.append(SearchResult(title, url, desc))
-			print q
+			#print q
 			break
 
     def initLocations(self):
@@ -85,7 +95,13 @@ class EventsSearch(SearchBase):
 		if res.url.find(domain) >= 0:
 			return 1
 	return 0
-
+    def addDateValue(self,res):
+	for i in xrange(1,len(self.months)):
+		for month in self.months[i]:
+			if res.title.find(month) >= 0 or res.desc.find(month) >= 0:
+				#print (12.0 - abs(i - self.eventdate.month)) / 12
+				return (12.0 - abs(i - self.eventdate.month)) / 12
+	return 0
     def initDictionary(self):
         key_file = open("keywords.txt",'r')
         count = 1
@@ -106,8 +122,9 @@ class EventsSearch(SearchBase):
         #search titles and descriptions for keywords
 	#this doesn't work, needs to be fixed or removed
         for res in self.results:
-	    value += self.addDomainValue(res)
-	    value += self.addLocationValue(res)
+	    value += (self.addDomainValue(res) * self.DOMAIN_HEURISTIC)
+	    value += (self.addLocationValue(res) * self.LOCATION_HEURISTIC)
+	    value += (self.addDateValue(res) * self.DATE_HEURISTIC)
             pair = res, value
             orders.append(pair)
             pair = ()
