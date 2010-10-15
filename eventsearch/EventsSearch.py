@@ -16,27 +16,32 @@ class EventsSearch(SearchBase):
     locations = []
     query = None
     eventdate = datetime.date.today()
-
-    DATE_HEURISTIC = 5
+    rpp = 50
+    DATE_HEURISTIC = 3
     DOMAIN_HEURISTIC = 1
-    LOCATION_HEURISTIC = 7
-    TITLE_HEURISTIC = 2
-    DESC_HEURISTIC = .01
+    LOCATION_HEURISTIC = 4
+    TITLE_HEURISTIC = 3
+    DESC_HEURISTIC = .1
 
     months = {1:["January","Jan"],2:["February","February"],3:["March","Mar"],4:["April","Apr"],5:["May"],6:["June","Jun"],7:["July","Jul"],8:["August","Aug"],9:["September","Sep"],10:["October","Oct"],11:["November","Nov"],12:["December","Dec"]}
     def search(self, query, rpp):
         self.results = super(EventsSearch, self).search(query, rpp)
 	self.query = query
+	self.rpp = rpp
 	self.reorder()
 	self.printResults()
 
     #print results
     def printResults(self):
+	total = 0
 	for res in self.results:
-		print res.title#.encode("utf8")
-		print res.desc#.encode("utf8")
-		print res.url#.encode("utf8")
+		print res.title.encode("utf-8")
+		print res.desc.encode("utf-8")
+		print res.url.encode("utf-8")
 		print
+		total += 1
+		if(total > self.rpp):
+			return
 
     #Creates a URL for an RSS feed from the span of dates
     #Currently filters College Fairs
@@ -84,8 +89,8 @@ class EventsSearch(SearchBase):
 	    desc = item_data.get(RSS10_DESC, "(none)").replace("<br/>","").replace("\n","").replace("\r","").replace("  "," ")
 	    for q in self.query.split():
 		if(title.lower().find(q.lower()) >= 0 or desc.lower().find(q.lower())):
-			if(len(self.results) <= 50):
-				self.results.append(SearchResult(title, url, desc))
+			if(len(self.results) <= self.rpp):
+				self.results.append(SearchResult(title.decode("utf-8"), url.decode("utf-8"), desc.decode("utf-8")))
 				break
 
     #Sets eventdate
@@ -161,7 +166,10 @@ class EventsSearch(SearchBase):
 	for term in self.query.split():
 		if res.title.find(term) >= 0:
 			found +=1
-	return found / len(self.query.split())
+	if len(self.query.split()) > 0:
+		return found / len(self.query.split())
+	else:
+		return 0
 
     #returns a value between 0-1 depending on how many of the
     #words in the search query are present in the description
@@ -170,7 +178,10 @@ class EventsSearch(SearchBase):
 	for term in self.query.split():
 		if res.title.find(term) >= 0:
 			found +=1
-	return found / len(self.query.split())
+	if len(self.query.split()) > 0:
+		return found / len(self.query.split())
+	else:
+		return 0
 
     #Reorders the search results
     def reorder(self):
@@ -199,9 +210,11 @@ class EventsSearch(SearchBase):
             orders.append(pair)
             pair = ()
             value = 0
-
+	    
         #order results based on values
         def cmpfun(a,b):
             return cmp(b[1],a[1])
         orders.sort(cmpfun)
-
+	self.results = []
+	for i in orders:
+		self.results.append(i[0])
